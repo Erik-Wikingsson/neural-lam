@@ -31,7 +31,7 @@ class CRPS(ARProbModel):
             noise_dim=args.noise_dim,
         )
 
-    def predict_step(self, prev_state, prev_prev_state, forcing, boundary_forcing):
+    def predict_step(self, prev_state, prev_prev_state, forcing, boundary_forcing, z=None):
         """
         Predict weather state one time step ahead
         X_{t-1}, X_t -> X_t+1
@@ -49,9 +49,9 @@ class CRPS(ARProbModel):
 
         x = torch.cat((prev_state, prev_prev_state, forcing),
                       dim=-1)  # (B, N_grid, d_input)
-
-        z = torch.randn(
-            prev_state.shape[0], self.model.noise_dim, device=prev_state.device)
+        if z is None:
+            z = torch.randn(
+                prev_state.shape[0], self.model.noise_dim, device=prev_state.device)
         next_state = self.model(x, z, boundary_forcing=boundary_forcing)
 
         if self.pred_residual:

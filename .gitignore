@@ -24,6 +24,8 @@ neural_lam/lam_plotting/predictions
 neural_lam/lam_plotting/state_plots
 *.pdf
 *debug*
+assim_plots
+ess_plots
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

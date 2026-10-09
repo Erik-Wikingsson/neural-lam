@@ -65,12 +65,12 @@ class ARModel(pl.LightningModule):
                 persistent=False,
             )
 
-        print(f"self.data_std: {self.data_std}")
-        print(f"self.data_mean: {self.data_mean}")
-        print(f"self.step_diff_mean: {self.step_diff_mean}")
-        print(f"self.step_diff_std: {self.step_diff_std}")
-        print(f"self.param_weights: {self.param_weights}")
-        print(f"self.per_var_std: {self.per_var_std}")
+        # print(f"self.data_std: {self.data_std}")
+        # print(f"self.data_mean: {self.data_mean}")
+        # print(f"self.step_diff_mean: {self.step_diff_mean}")
+        # print(f"self.step_diff_std: {self.step_diff_std}")
+        # print(f"self.param_weights: {self.param_weights}")
+        # print(f"self.per_var_std: {self.per_var_std}")
 
         # grid_dim from data + static
         (

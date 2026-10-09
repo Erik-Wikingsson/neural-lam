@@ -16,6 +16,7 @@ class ESS(pl.LightningModule):
 
     def __init__(self, args):
         super().__init__()
+        self.args = args
 
         # Initialize FGN Model
         self.model = CRPS(args).to(args.device)
@@ -39,11 +40,11 @@ class ESS(pl.LightningModule):
         prev_prev_state = init_states[:, 0]
         prev_state = init_states[:, 1]
         with torch.no_grad():
-            forecast = self.model.predict_step(
+            forecast, _ = self.model.predict_step(
                 prev_state, prev_prev_state, forcing, boundary_forcing, z)
             logp = -0.5 * ((self.observation_fn(forecast) -
                            obs) ** 2) / self.args.obs_sigma**2
-        return torch.sum(logp, dim=-1)
+        return torch.sum(logp, dim=(-2, -1))
 
     def create_log_likelihood_fn(self, init_states, forcing, boundary_forcing, obs):
         return lambda z: self.log_likelihood_fn(z, init_states, forcing, boundary_forcing, obs)
@@ -65,7 +66,7 @@ class ESS(pl.LightningModule):
             prev_state = init_states[:, 1]
             # [B, noise_dim]
             with torch.no_grad():
-                forecast = self.model.predict_step(
+                forecast, _ = self.model.predict_step(
                     prev_state, prev_prev_state, forcing, boundary_forcing, z)
                 init_states = torch.cat(
                     [init_states[:, 1:], forecast.unsqueeze(1)], dim=1)
@@ -73,7 +74,7 @@ class ESS(pl.LightningModule):
                 if obs is not None:
                     logp = -0.5 * ((self.observation_fn(forecast) -
                                     obs) ** 2) / self.args.obs_sigma**2
-                    logp_sums.append(torch.sum(logp, dim=-1))
+                    logp_sums.append(torch.sum(logp, dim=(-2, -1)))
         logp_sum = torch.stack(logp_sums, dim=0).flatten()
 
         return logp_sum
@@ -100,7 +101,8 @@ class ESS(pl.LightningModule):
 
         self.obs_mask = torch.tensor(obs_mask, device=self.args.device)
         obs = torch.tensor(obs, device=self.args.device)
-        self.observation_fn = lambda x: obs_fn(x[:, self.obs_mask[0].bool()])
+        self.observation_fn = lambda x: obs_fn(
+            x[:, self.obs_mask[0, :, 0].bool(), :])
         self.current_log_likelihood_fn = self.create_log_likelihood_fn(
             init_states_scaled, forcing, boundary_forcing, obs)
 
@@ -124,8 +126,10 @@ class ESS(pl.LightningModule):
             # [n_ens, num_samples, noise_dim]
             # NOTE: We can take more samples and then use some spread out indexes to get approximately iid samples.
             with torch.no_grad():
-                analysis = self.model.predict_step(
-                    init_states_scaled, analysis_z[:, 0, :])  # Take the first sample
+                prev_prev_state = init_states[:, 0]
+                prev_state = init_states[:, 1]
+                analysis, _ = self.model.predict_step(
+                    prev_state, prev_prev_state, forcing, boundary_forcing, analysis_z[:, 0, :])  # Take the first sample
 
             return analysis, log_like_list
         else:
@@ -140,7 +144,7 @@ class ESS(pl.LightningModule):
             with torch.no_grad():
                 prev_prev_state = init_states[:, 0]
                 prev_state = init_states[:, 1]
-                analysis = self.model.predict_step(
+                analysis, _ = self.model.predict_step(
                     prev_state, prev_prev_state, forcing, boundary_forcing, analysis_z[:, 0, :])  # Take the first sample
 
             return analysis
@@ -194,8 +198,8 @@ class ESS(pl.LightningModule):
                 for idx, z in enumerate(analysis_z):
                     prev_prev_state = init_states[:, 0]
                     prev_state = init_states[:, 1]
-                    analysis = self.model.predict_step(
-                        prev_state, prev_prev_state, forcing, boundary_forcing, analysis_z[:, 0, :])  # Take the first sample
+                    analysis, _ = self.model.predict_step(
+                        prev_state, prev_prev_state, forcing, boundary_forcing, z[:, 0, :])  # Take the first sample
                     analysis_list.append(analysis)
                     init_states_scaled = torch.cat(
                         [init_states_scaled[:, 1:], analysis.unsqueeze(1)], dim=1)
@@ -218,8 +222,8 @@ class ESS(pl.LightningModule):
                 for idx, z in enumerate(analysis_z):
                     prev_prev_state = init_states[:, 0]
                     prev_state = init_states[:, 1]
-                    analysis = self.model.predict_step(
-                        prev_state, prev_prev_state, forcing, boundary_forcing, analysis_z[:, 0, :])  # Take the first sample
+                    analysis, _ = self.model.predict_step(
+                        prev_state, prev_prev_state, forcing, boundary_forcing, z[:, 0, :])  # Take the first sample
                     analysis_list.append(analysis)
                     init_states_scaled = torch.cat(
                         [init_states_scaled[:, 1:], analysis.unsqueeze(1)], dim=1)
